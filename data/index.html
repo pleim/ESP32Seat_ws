@@ -1,0 +1,78 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+  <title>ESP Web Server</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" type="text/css" href="style.css">
+
+  <title>ESP Web Server</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+</head>
+
+<body>
+  <div class="topnav">
+    <h1>ESP Webserver - Seat</h1>
+  </div>
+  <div class="content">
+    <div class="card">
+      <h2>Status
+        <div class="arrows" style="margin-left: 50px;">
+          <span id="move_up">&#129049</span>
+          <span id="move_down">&#129051</span>
+        </div>
+      </h2>
+      <p class="state"><span class="label">Pitch: </span><span id="state_pitch">-</span></p>
+      <p class="state"><span class="label">Position: </span><span id="state_pos">-</span></p>
+      <p class="state"><span class="label">Speed: </span><span id="state_speed">-</span></p>
+      <p class="state"><span class="label">Current: </span><span id="state_current">-</span> mA</p>
+      <p class="state"><span class="label">Battery: </span><span id="state_voltage">-</span> V</p>
+      <p>
+        <label class="state" for="auto">Auto mode</label>
+        <label class="switch">
+          <input type="checkbox" id="mode_auto">
+          <span class="slider"></span>
+        </label>
+      </p>
+      <p >
+        <label class="state" for="manu">Manual mode</label>
+        <label class="switch" >
+          <input type="checkbox" id="mode_manu">
+          <span class="slider"></span>
+        </label>
+      </p>
+      <p class="parameter" >
+        <input type="number" id="test" >
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>Settings</h2>
+      <p class="parameter">
+        <label for="par_speed">Speed</label><br>
+        <input type="number" id="par_speed" value="100">
+      </p>
+      <p class="parameter">
+        <label for="par_top">Limit top</label><br>
+        <input type="number" id="par_top" value="100">
+      </p>
+      <p class="parameter">
+        <label for="par_bottom">Limit bottom</label><br>
+        <input type="number" id="par_bottom" value="100">
+      </p>
+      <p class="parameter">
+        <label for="par_currmax">Current limit</label><br>
+        <input type="number" id="par_currmax" value="100">
+      </p>
+      <p><button id="btn_save" class="button">Save</button></p>
+    </div>    
+    <a href="/update" target="_blank">
+      <h2>update</h2>
+    </a>
+  </div>
+</body>
+<script src="script.js"></script>
+
+</html>
