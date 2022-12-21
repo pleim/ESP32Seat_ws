@@ -75,7 +75,7 @@ int current_raw;  // Raw value current sense
 
 int ReadAnalog(int pin)
 {
-  int n = 5;  // max 10
+  int n = 10;  // max 10
   int x = 0;
   for (size_t i = 0; i < n; i++)
   {
@@ -97,20 +97,19 @@ void control(int pitch_in)
   // position control
   if(m_auto == 1)
   {
-    int pos_up = pitch - p.hyst;
-    int pos_down = pitch + p.hyst;
-    int pos_stop = pitch;
+    int pt = pitch;
+    if(pt > p.top ) pt = p.top;
+    if(pt < p.bottom) pt = p.bottom;
+
+    int pos_up = pt - p.hyst;
+    int pos_down = pt + p.hyst;
+    int pos_stop = pt;
 
     if(position < pos_up) speed = p.speed;
     if(position > pos_down) speed = -p.speed;
 
-    if(pos_stop > p.top + p.hyst) pos_stop = p.top;
-    if(pos_stop < p.bottom - p.hyst) pos_stop = p.bottom;
-
     if(speed > 0 && position > pos_stop) speed = 0;
-    if(speed < 0 && position < pos_stop) speed = 0;
-
-    //if(position > p.top || position < p.bottom) speed = 0;
+    if(speed < 0 && position < pos_stop) speed = 0;    
   }
   else
   {
@@ -128,8 +127,8 @@ void updateState()
   stat += String(voltage) + ";";
 
   stat += (m_auto == 1) ? "1;" : "0;";
-  stat += (speed < 0) ? "1;" : "0;";
-  stat += (speed > 0) ? "1" : "0";
+  stat += (speed > 0) ? "1;" : "0;";
+  stat += (speed < 0) ? "1" : "0";
 
   ws.textAll(stat);
 }
@@ -278,7 +277,7 @@ void loop()
     current = current_raw;
 
     // control
-    control(ay/2 + 450);
+    control(ay/3 + 450);
 
     // update outputs
     digitalWrite(pin_motordir, (speed < 0));
@@ -290,7 +289,7 @@ void loop()
       // cell voltage
       int n = ReadAnalog(pin_cellvolt);
       n = n * 1000;
-      voltage = n / 620;
+      voltage = n / 579;
  
       // update gui
       updateState();

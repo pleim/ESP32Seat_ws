@@ -26,7 +26,7 @@ function onMessage(event) {
 function onLoad(event) {
     initWebSocket();
     //initButton();
-    document.getElementById('test').addEventListener('change', test);
+    //document.getElementById('test').addEventListener('change', test);
     document.getElementById('btn_save').addEventListener('click', save);
 
     // Mode
