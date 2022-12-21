@@ -68,8 +68,10 @@ int voltage;      // battery voltage [mV]
 parameters p;
 
 
-int m_auto = 0;   // Mode (to be defined)
-int poti_raw;
+int m_auto = 0;   // Mode (0 off, 1 active)
+int m_axis = 0;   // Axis select ()
+int pitch_raw;    // Signal from accelerometer
+int poti_raw;     // Signal from hall sensor
 int current_raw;  // Raw value current sense
 
 
@@ -127,6 +129,7 @@ void updateState()
   stat += String(voltage) + ";";
 
   stat += (m_auto == 1) ? "1;" : "0;";
+  stat += (m_axis == 1) ? "1;" : "0;";
   stat += (speed > 0) ? "1;" : "0;";
   stat += (speed < 0) ? "1" : "0";
 
@@ -149,14 +152,12 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
       saveParameters(p);
       Serial.println("Parameters saved");
     }
-    if (message == "mode_auto=false")
-    {
-      m_auto = 0;
-    }
-    if (message == "mode_auto=true")
-    {
-      m_auto = 1;
-    }
+    if (message == "mode_auto=false") m_auto = 0;
+    if (message == "mode_auto=true")  m_auto = 1;
+
+    if (message == "mode_axis=false") m_axis = 0;
+    if (message == "mode_axis=true")  m_axis = 1;
+
     ws.textAll(updateParameters(p));
   }
 }
@@ -277,12 +278,19 @@ void loop()
     current = current_raw;
 
     // control
-    control(ay/3 + 450);
+    if(m_axis == 0)
+      pitch_raw = ay;
+    else
+      pitch_raw = az;
+    
+    pitch_raw = pitch_raw * p.sensibility;
+    pitch_raw = pitch_raw / 1000;
+    pitch_raw += p.offset;
+    control(pitch_raw);
 
     // update outputs
     digitalWrite(pin_motordir, (speed < 0));
     ledcWrite(pwmChannel, abs((speed*25)/10));
-
 
     if(slowCount >= slowTask)
     {
