@@ -16,7 +16,10 @@
 #include "MPU6050.h"
 #include "Wire.h"
 
-#include "parameter.h"
+#include "parameters.h"
+#include "calc.h"
+#include "adapt.h"
+#include "lowpass_filter.h"
 
 const char *ssid = "ipfire";         // Replace with your SSID
 const char *password = "joseffranz"; // Repalce with your password
@@ -24,7 +27,14 @@ const char *password = "joseffranz"; // Repalce with your password
 bool ledstate = 0;
 String message = "";
 
+// -----------------------------------
+// dfsfds
+LowPassFilter lpf1 = LowPassFilter(0.003);
+Adapt PosNorm = Adapt(50, 500);
+// -----------------------------------
 
+// Parameters
+Parameters p;
 
 // Accelerometer
 MPU6050 accelgyro;
@@ -59,21 +69,17 @@ unsigned int slowCount = 0;       // counter for slow task
 unsigned int slowTask = 5;        // count of main cycles for slow task
 
 // Variables
-int pitch;        // pitch angle (° x 10 ??)
-int position;     // seat position [%]
+int positionraw;  // seat position, raw signal of hall sensor
+int currentraw;   // Raw value current sense
+int pitch;        // pitch angle filtered [°]
+int position;     // seat position, adapted to range, filtered [%]
+int current;      // motor current scaled and filtered [mA]
 int speed;        // motor speed [%]
-int current;      // motor current [mA]
 int voltage;      // battery voltage [mV]
-
-parameters p;
 
 
 int m_auto = 0;   // Mode (0 off, 1 active)
 int m_axis = 0;   // Axis select ()
-int pitch_raw;    // Signal from accelerometer
-int poti_raw;     // Signal from hall sensor
-int current_raw;  // Raw value current sense
-
 
 int ReadAnalog(int pin)
 {
@@ -84,39 +90,6 @@ int ReadAnalog(int pin)
     x += analogRead(pin);
   }
   return x/n;
-}
-
-void control(int pitch_in)
-{  
-  pitch = pitch * 9 + pitch_in;      // filter 
-  pitch = pitch / 10;
-
-  position = poti_raw - 2048;        // scale ?, +/- 2048
-
-  // current limit
-  if(current > p.curr) m_auto = 0;
-
-  // position control
-  if(m_auto == 1)
-  {
-    int pt = pitch;
-    if(pt > p.top ) pt = p.top;
-    if(pt < p.bottom) pt = p.bottom;
-
-    int pos_up = pt - p.hyst;
-    int pos_down = pt + p.hyst;
-    int pos_stop = pt;
-
-    if(position < pos_up) speed = p.speed;
-    if(position > pos_down) speed = -p.speed;
-
-    if(speed > 0 && position > pos_stop) speed = 0;
-    if(speed < 0 && position < pos_stop) speed = 0;    
-  }
-  else
-  {
-    speed = 0;
-  }
 }
 
 void updateState()
@@ -145,12 +118,21 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
     data[len] = 0;
     message = (char *)data;
     Serial.println(message);
-    ParsePair(message, &p);
+    p.Parse(message);
 
     if (message == "save")
     {
-      saveParameters(p);
+      p.SaveParameters();
       Serial.println("Parameters saved");
+      //
+      File spiffsLogFile = SPIFFS.open("/log.txt", FILE_APPEND);
+      String logstring = "Arduino\r\n";
+      byte logbuffer[logstring.length() + 1];
+      logstring.getBytes(logbuffer, logstring.length() + 1);
+      spiffsLogFile.write((uint8_t*) logbuffer, sizeof(logbuffer));
+      spiffsLogFile.flush();
+      spiffsLogFile.close();
+      //
     }
     if (message == "mode_auto=false") m_auto = 0;
     if (message == "mode_auto=true")  m_auto = 1;
@@ -158,7 +140,7 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
     if (message == "mode_axis=false") m_axis = 0;
     if (message == "mode_axis=true")  m_axis = 1;
 
-    ws.textAll(updateParameters(p));
+    ws.textAll(p.UpdateParameters());
   }
 }
 
@@ -170,7 +152,7 @@ void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType 
   case WS_EVT_CONNECT:
     Serial.printf("WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
     updateState();
-    ws.textAll(updateParameters(p));    
+    ws.textAll(p.UpdateParameters());    
     break;
   case WS_EVT_DISCONNECT:
     Serial.printf("WebSocket client #%u disconnected\n", client->id());
@@ -230,6 +212,41 @@ void initWiFi()
   Serial.println(WiFi.localIP());
 }
 
+void control(int pitch_in)
+{  
+  pitch = pitch * 9 + pitch_in;      // filter 
+  pitch = pitch / 10;
+
+  position = poti_raw - 2048;        // scale ?, +/- 2048
+
+  // current limit
+  if(current > p.curr) m_auto = 0;
+
+  // position control
+  if(m_auto == 1)
+  {
+    int pt = pitch;
+    if(pt > p.top ) pt = p.top;
+    if(pt < p.bottom) pt = p.bottom;
+
+    int pos_up = pt - p.hyst;
+    int pos_down = pt + p.hyst;
+    int pos_stop = pt;
+
+    if(position < pos_up) speed = p.speed;
+    if(position > pos_down) speed = -p.speed;
+
+    if(speed > 0 && position > pos_stop) speed = 0;
+    if(speed < 0 && position < pos_stop) speed = 0;    
+  }
+  else
+  {
+    speed = 0;
+  }
+}
+
+// -----------------------------------  setup ----------------------------------------------------
+
 void setup()
 {
   // GPIO
@@ -246,8 +263,15 @@ void setup()
   // Parameters
   initSPIFFS();
   preferences.begin("seat_ws", false);
-  p = initParameters();
+  p.InitParameters();
 
+  // Prepare for log
+  if(!SPIFFS.exists("/log.txt")) {
+      File writeLog = SPIFFS.open("/log.txt", FILE_WRITE);
+      if(!writeLog) Serial.println("Couldn't open spiffs_log.txt");
+      delay(50);
+      writeLog.close();
+  } 
 
   // IMU sensor
   Wire.begin();
@@ -262,7 +286,15 @@ void setup()
   server.serveStatic("/", SPIFFS, "/");
   AsyncElegantOTA.begin(&server);
   server.begin();
+
+  // 
+  float f = lpf1(5.0f);
+  Serial.print(f);
+  PosNorm.max = 550;
+  float pos = PosNorm(340);
 }
+
+// -----------------------------------  loop -----------------------------------------------------
 
 void loop()
 {
