@@ -1,5 +1,5 @@
 <!DOCTYPE HTML>
-<html>
+<html lang="en">
 
 <head>
   <title>ESP Web Server</title>
@@ -24,93 +24,119 @@
           <span id="move_down">&#129051</span>
         </div>
       </h2>
-      <p class="state"><span class="label">Pitch: </span><span id="state_pitch">-</span></p>
+      <p class="state"><span class="label">Pitch: </span><span id="state_pitch">-</span> &deg</p>
       <p class="state"><span class="label">Position: </span><span id="state_pos">-</span></p>
       <p class="state"><span class="label">Speed: </span><span id="state_speed">-</span></p>
       <p class="state"><span class="label">Current: </span><span id="state_current">-</span> mA</p>
       <p class="state"><span class="label">Battery: </span><span id="state_voltage">-</span> V</p>
-      <p>
-        <label class="state" for="mode_auto">Enable</label>
-        <label class="switch">
-          <input type="checkbox" id="mode_auto">
-          <span class="slider"></span>
-        </label>
-      </p>
-      <p>
-        <label class="state" for="mode_axis">Use z-axis (default y)</label>
-        <label class="switch">
-          <input type="checkbox" id="mode_axis">
-          <span class="slider"></span>
-        </label>
-      </p>
+      <table>
+        <tr>
+          <td style="width: 50%;">
+            <p>
+              <label class="state" for="mode_auto">Enable</label>
+              <label class="switch">
+                <input type="checkbox" id="mode_auto">
+                <span class="slider"></span>
+              </label>
+            </p>
+          </td>
+          <td>
+            <!-- <p>
+              <label class="parameter" for="mode_axis">Use z-axis (default y)</label>
+              <label class="switch">
+                <input type="checkbox" id="mode_axis">
+                <span class="slider"></span>
+              </label>
+            </p> -->
+          </td>
+        </tr>
+      </table>
+      <p><label class="parameter">Accelerometer x/y/z: <span id="state_acc">-</span></label></p>
+      <p><label class="parameter">Position raw: <span id="state_posraw">-</span></label></p>
+      <p><label class="parameter">Position reference: <span id="state_posref">-</span> %</label></p>
     </div>
 
     <div class="card">
       <h2>Settings</h2>
       <table>
         <tr>
-          <td>
+          <td style="width: 50%;">
             <p class="parameter">
-              <label for="par_speed">Speed [%]</label><br>
-              <input type="number" id="par_speed" value="100">
+              <label for="par_speed">Speed</label><br>
+              <input type="number" id="par_speed" min="0" max="200" step="1" placeholder="100"> 
             </p>
           </td>
           <td>
             <p class="parameter">
-              <label for="par_top">Limit top</label><br>
-              <input type="number" id="par_top" value="100">
-            </p>
-          </td>
-        </tr>
-        <tr>
-          <td>
-            <p class="parameter">
-              <label for="par_currmax">Current limit [mA]</label><br>
-              <input type="number" id="par_currmax" value="100">
-            </p>
-          </td>
-          <td>
-            <p class="parameter">
-              <label for="par_bottom">Limit bottom</label><br>
-              <input type="number" id="par_bottom" value="100">
+              <label for="par_top">Limit Top</label><br>
+              <input type="number" id="par_top" min="0" max="4095" step="1" placeholder="100">
             </p>
           </td>
         </tr>
         <tr>
           <td>
             <p class="parameter">
-              <label for="par_offset">Offset [°]</label><br>
-              <input type="number" id="par_offset" value="100">
+              <label for="par_bottom">Limit Bottom</label><br>
+              <input type="number" id="par_bottom" min="0" max="4095" step="1" placeholder="100">
             </p>
           </td>
           <td>
             <p class="parameter">
-              <label for="par_hyst">Hysteresis (20..50)</label><br>
-              <input type="number" id="par_hyst" value="100">
+              <label for="par_fpitch">Filter Pitch</label><br>
+              <input type="number" id="par_fpitch" min="0" max="100" step=".01" placeholder="0.1"> s
             </p>
           </td>
         </tr>
         <tr>
           <td>
             <p class="parameter">
-              <label for="par_sens">Sensibility (100..1000)</label><br>
-              <input type="number" id="par_sens" value="100">
+              <label for="par_fpos">Filter Position</label><br>
+              <input type="number" id="par_fpos" min="0" max="100" step=".01" placeholder="0.1"> s
             </p>
           </td>
           <td>
             <p class="parameter">
-              <label for="">Filter current (0..100)</label>
-              <input type="number" id="par_filtcurr" value="100">
+              <label for="par_fcurr">Filter Current</label><br>
+              <input type="number" id="par_fcurr" min="0" max="100" step=".01" placeholder="0.1"> s
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <p class="parameter">
+              <label for="par_curr">Current limit</label><br>
+              <input type="number" id="par_curr" min="0" max="10000" step="1" placeholder="100"> mA
+            </p>
+          </td>
+          <td>
+            <p class="parameter">
+              <label for="par_hyst">Hysteresis</label><br>
+              <input type="number" id="par_hyst" min="0" max="100" step="0.1" placeholder="100"> %
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <p class="parameter">
+              <label for="par_p1pitch">Pitch for 0%</label><br>
+              <input type="number" id="par_p1pitch" min="-90" max="90" step=".1" placeholder="-30"> &deg
+            </p>
+          </td>
+          <td>
+            <p class="parameter">
+              <label for="par_p2pitch">Pitch for 100%</label><br>
+              <input type="number" id="par_p2pitch" min="-90" max="90" step=".1" placeholder="30"> &deg
             </p>
           </td>
         </tr>
       </table>
       <p><button id="btn_save" class="button">Save</button></p>
     </div>
+
     <a href="/update" target="_blank">
       <h2>update</h2>
     </a>
-    <a href="/log.txt" target="_blank">Logfile</a>
+    <!-- <a href="/log.txt" target="_blank">Logfile</a> -->
   </div>
 
 </body>

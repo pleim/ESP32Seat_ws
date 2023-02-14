@@ -22,6 +22,8 @@ public:
   int top;
   // [1] Upper position seat (raw value)
   int bottom;
+  // [1] Filter pitch measurement
+  float fpitch;
   // [1] Filter seat position measurement
   float fpos;
   // [1] Filter seat position measurement
@@ -30,17 +32,13 @@ public:
   int curr;   
   // [%]
   float hyst;
-  // [°] Point 1 - angle
-  float p1angle;
-  // [%] Point 1 - ref. position
-  float p1ref;
-  // [°] Point 2 - angle
-  float p2angle;
-  // [%] Point 2 - ref. position
-  float p2ref;
+  // [°] Point 1 - pitch angle for 0 % position reference
+  float p1pitch;
+  // [°] Point 2 - pitch angle for 100% position reference
+  float p2pitch;
 };
 
-Parameters::Parameters(/* args */)
+Parameters::Parameters()
 {}
 
 Parameters::~Parameters()
@@ -63,6 +61,8 @@ void Parameters::Parse(String s)
     top = value.toInt();
   if (s.startsWith("par_bottom"))
     bottom = value.toInt();
+  if (s.startsWith("par_fpitch"))
+    fpitch = value.toFloat();
   if (s.startsWith("par_fpos"))
     fpos = value.toFloat();
   if (s.startsWith("par_fcurr"))
@@ -71,30 +71,25 @@ void Parameters::Parse(String s)
     curr = value.toInt();
   if (s.startsWith("par_hyst"))
     hyst = value.toFloat();
-  if (s.startsWith("par_p1angle"))
-    p1angle = value.toFloat();
-  if (s.startsWith("par_p1ref"))
-    p1ref = value.toFloat();
-  if (s.startsWith("par_p2angle"))
-    p2angle = value.toFloat();
-  if (s.startsWith("par_p2ref"))
-    p2ref = value.toFloat();
+  if (s.startsWith("par_p1pitch"))
+    p1pitch = value.toFloat();
+  if (s.startsWith("par_p2pitch"))
+    p2pitch = value.toFloat();
 }
 
 String Parameters::UpdateParameters()
 {
   String par = "par;";
-  par += String(speed) + ";";
-  par += String(top) + ";";
-  par += String(bottom) + ";";
-  par += String(fpos) + ";";
-  par += String(fcurr) + ";";
-  par += String(curr) + ";";
-  par += String(hyst) + ";";
-  par += String(p1angle) + ";";
-  par += String(p1ref) + ";";
-  par += String(p2angle) + ";";
-  par += String(p2ref);
+  par += String(speed) + ";";   // 1
+  par += String(top) + ";";     // 2
+  par += String(bottom) + ";";  // 3
+  par += String(fpitch) + ";";  // 4
+  par += String(fpos) + ";";    // 5
+  par += String(fcurr) + ";";   // 6
+  par += String(curr) + ";";    // 7
+  par += String(hyst) + ";";    // 8
+  par += String(p1pitch) + ";"; // 9
+  par += String(p2pitch) + ";"; // 10
   return par;
 }
 
@@ -103,14 +98,13 @@ void Parameters::InitParameters()
   speed = preferences.getInt("p_speed", 0);
   top = preferences.getInt("p_top", 0);
   bottom = preferences.getInt("p_bottom", 0);
+  fpitch = preferences.getFloat("p_fpitch", 0);
   fpos = preferences.getFloat("p_fpos", 0);
   fcurr = preferences.getFloat("p_fcurr", 0);
   curr = preferences.getInt("p_curr", 0);
   hyst = preferences.getFloat("p_hyst", 0);
-  p1angle = preferences.getFloat("p_p1angle", 0);
-  p1ref = preferences.getFloat("p_p1ref", 0);
-  p2angle = preferences.getFloat("p_p2angle", 0);
-  p2ref = preferences.getFloat("p_p2ref", 0);
+  p1pitch = preferences.getFloat("p_p1pitch", 0);
+  p2pitch = preferences.getFloat("p_p2pitch", 0);  
 }
 
 void Parameters::SaveParameters()
@@ -118,12 +112,11 @@ void Parameters::SaveParameters()
   preferences.putInt("p_speed", speed);
   preferences.putInt("p_top", top);
   preferences.putInt("p_bottom", bottom);
+  preferences.putFloat("p_fpitch", fpitch);
   preferences.putFloat("p_fpos", fpos);
   preferences.putFloat("p_fcurr", fcurr);
   preferences.putInt("p_curr", curr);
   preferences.putFloat("p_hyst", hyst);
-  preferences.putFloat("p_p1angle", p1angle);
-  preferences.putFloat("p_p1ref", p1ref);
-  preferences.putFloat("p_p2angle", p2angle);
-  preferences.putFloat("p_p2ref", p2ref);
+  preferences.putFloat("p_p1pitch", p1pitch);
+  preferences.putFloat("p_p2pitch", p2pitch);  
 }

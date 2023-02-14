@@ -18,6 +18,8 @@
 class LowPassFilter
 {
 public:
+    // Initialize filter
+    // @param time_constant Filter time constant in seconds
     LowPassFilter(float time_constant)
     {
         Tf = time_constant;
@@ -27,8 +29,9 @@ public:
 
     //~LowPassFilter() = default;
   
-    float operator () (float x)
+    float operator () (float x, float tc)
     {
+        Tf = tc;
         unsigned long timestamp = micros();
         float dt = (timestamp - timestamp_prev)*1e-6f;
 
@@ -49,17 +52,3 @@ protected:
     unsigned long timestamp_prev;  
     float y_prev; 
 };
-
-
-/*
-class Normalize
-{
-public:
-    Normalize(int min, int max);
-    ~Normalize() = default;
-
-    float operator() (int in);
-    int min;
-    int max;
-};
-*/

@@ -1,9 +1,7 @@
 // This example code is in the Public Domain (or CC0 licensed, at your option.)
 // By Evandro Copercini - 2018
 //
-//
 // https://randomnerdtutorials.com/stepper-motor-esp32-websocket/#more-105630
-//
 // https://randomnerdtutorials.com/esp32-websocket-server-arduino/
 //
 
@@ -18,7 +16,6 @@
 
 #include "parameters.h"
 #include "calc.h"
-#include "adapt.h"
 #include "lowpass_filter.h"
 
 const char *ssid = "ipfire";         // Replace with your SSID
@@ -26,12 +23,6 @@ const char *password = "joseffranz"; // Repalce with your password
 
 bool ledstate = 0;
 String message = "";
-
-// -----------------------------------
-// dfsfds
-LowPassFilter lpf1 = LowPassFilter(0.003);
-Adapt PosNorm = Adapt(50, 500);
-// -----------------------------------
 
 // Parameters
 Parameters p;
@@ -42,13 +33,19 @@ MPU6050 accelgyro;
 int16_t ax, ay, az;
 int16_t gx, gy, gz;
 
+// Filters and signal adaption
+LowPassFilter LPFpitch = LowPassFilter(1.0);      // param
+LowPassFilter LPFpositon = LowPassFilter(0.05);
+LowPassFilter LPFcurrent = LowPassFilter(0.05);   // param
+LowPassFilter LPFvoltage = LowPassFilter(0.1);
+
 // Create Webserver
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 
 // Pins
 const int pin_wlanmode = 13;  // at startup 0 = Client mode, 1 (or float) = AP mode
-const int pin_poti = 35;     // ADC1_CH6
+const int pin_position = 35;     // ADC1_CH6
 
 const int pin_motorpwm = 18; // speed of motor
 const int pin_motordir = 19; // direction of motor
@@ -69,13 +66,14 @@ unsigned int slowCount = 0;       // counter for slow task
 unsigned int slowTask = 5;        // count of main cycles for slow task
 
 // Variables
-int positionraw;  // seat position, raw signal of hall sensor
-int currentraw;   // Raw value current sense
-int pitch;        // pitch angle filtered [°]
-int position;     // seat position, adapted to range, filtered [%]
-int current;      // motor current scaled and filtered [mA]
-int speed;        // motor speed [%]
-int voltage;      // battery voltage [mV]
+int positionraw;    // seat position, raw signal of hall sensor
+int currentraw;     // Raw value current sense
+float pitch;        // pitch angle filtered [°]
+float positionref;  // reference for seat positon [%]
+float position;     // seat position, adapted to range, filtered [%]
+float current;      // motor current scaled and filtered [mA]
+float speed;        // motor speed [%]
+float voltage;      // battery voltage [mV]
 
 
 int m_auto = 0;   // Mode (0 off, 1 active)
@@ -95,16 +93,19 @@ int ReadAnalog(int pin)
 void updateState()
 {
   String stat = "state;";
-  stat += String(pitch) + ";";
-  stat += String(position) + ";";
-  stat += String(speed) + ";";
-  stat += String(current) + ";";
-  stat += String(voltage) + ";";
+  stat += String(pitch) + ";";      // 1
+  stat += String(position) + ";";   // 2
+  stat += String(speed) + ";";      // 3
+  stat += String(current) + ";";    // 4
+  stat += String(voltage) + ";";    // 5
+  stat += String(ax) + " " + String(ay) + " " + String(az) + ";"; // 6
+  stat += String(positionraw) + ";";  // 7
+  stat += String(positionref) + ";";  // 8
 
-  stat += (m_auto == 1) ? "1;" : "0;";
-  stat += (m_axis == 1) ? "1;" : "0;";
-  stat += (speed > 0) ? "1;" : "0;";
-  stat += (speed < 0) ? "1" : "0";
+  stat += (m_auto == 1) ? "1;" : "0;";  // 9
+  stat += (m_axis == 1) ? "1;" : "0;";  // 10
+  stat += (speed > 0) ? "1;" : "0;";    // 11
+  stat += (speed < 0) ? "1" : "0";      // 12
 
   ws.textAll(stat);
 }
@@ -125,13 +126,13 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
       p.SaveParameters();
       Serial.println("Parameters saved");
       //
-      File spiffsLogFile = SPIFFS.open("/log.txt", FILE_APPEND);
-      String logstring = "Arduino\r\n";
-      byte logbuffer[logstring.length() + 1];
-      logstring.getBytes(logbuffer, logstring.length() + 1);
-      spiffsLogFile.write((uint8_t*) logbuffer, sizeof(logbuffer));
-      spiffsLogFile.flush();
-      spiffsLogFile.close();
+      // File spiffsLogFile = SPIFFS.open("/log.txt", FILE_APPEND);
+      // String logstring = "Arduino\r\n";
+      // byte logbuffer[logstring.length() + 1];
+      // logstring.getBytes(logbuffer, logstring.length() + 1);
+      // spiffsLogFile.write((uint8_t*) logbuffer, sizeof(logbuffer));
+      // spiffsLogFile.flush();
+      // spiffsLogFile.close();
       //
     }
     if (message == "mode_auto=false") m_auto = 0;
@@ -212,32 +213,24 @@ void initWiFi()
   Serial.println(WiFi.localIP());
 }
 
-void control(int pitch_in)
+// -----------------------------------  control  ------------------------------------------------
+
+void control()
 {  
-  pitch = pitch * 9 + pitch_in;      // filter 
-  pitch = pitch / 10;
-
-  position = poti_raw - 2048;        // scale ?, +/- 2048
-
   // current limit
   if(current > p.curr) m_auto = 0;
 
   // position control
   if(m_auto == 1)
   {
-    int pt = pitch;
-    if(pt > p.top ) pt = p.top;
-    if(pt < p.bottom) pt = p.bottom;
-
-    int pos_up = pt - p.hyst;
-    int pos_down = pt + p.hyst;
-    int pos_stop = pt;
+    float pos_up = positionref - p.hyst;
+    float pos_down = positionref + p.hyst;
 
     if(position < pos_up) speed = p.speed;
     if(position > pos_down) speed = -p.speed;
 
-    if(speed > 0 && position > pos_stop) speed = 0;
-    if(speed < 0 && position < pos_stop) speed = 0;    
+    if(speed > 0 && position > positionref) speed = 0;
+    if(speed < 0 && position < positionref) speed = 0;    
   }
   else
   {
@@ -245,7 +238,7 @@ void control(int pitch_in)
   }
 }
 
-// -----------------------------------  setup ----------------------------------------------------
+// -----------------------------------  setup  --------------------------------------------------
 
 void setup()
 {
@@ -264,7 +257,10 @@ void setup()
   initSPIFFS();
   preferences.begin("seat_ws", false);
   p.InitParameters();
-
+  LPFpitch.Tf = p.fpitch;
+  LPFpositon.Tf = p.fpos;
+  LPFcurrent.Tf = p.fcurr;
+  
   // Prepare for log
   if(!SPIFFS.exists("/log.txt")) {
       File writeLog = SPIFFS.open("/log.txt", FILE_WRITE);
@@ -287,11 +283,6 @@ void setup()
   AsyncElegantOTA.begin(&server);
   server.begin();
 
-  // 
-  float f = lpf1(5.0f);
-  Serial.print(f);
-  PosNorm.max = 550;
-  float pos = PosNorm(340);
 }
 
 // -----------------------------------  loop -----------------------------------------------------
@@ -302,23 +293,24 @@ void loop()
   {
     slowCount++;
 
-    // Read inputs
-    poti_raw = ReadAnalog(pin_poti);
-    accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+    // Read analog inputs
+    positionraw = ReadAnalog(pin_position);
+    float positionadapted = Adapt(positionraw, p.bottom, p.top);
+    position = LPFpositon(positionadapted, p.fpos);
 
-    current_raw = ReadAnalog(pin_current);
-    current = current_raw;
+    currentraw = ReadAnalog(pin_current);
+    current = LPFcurrent(currentraw * 1.0f, p.fcurr);
+
+    int voltageraw = ReadAnalog(pin_cellvolt);
+    voltage = LPFvoltage(voltageraw * 0.579f, 1.0f);  // const 1s filter
+    
+    accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+    float pitchraw = Pitch(ax, ay, az);
+    pitch = LPFpitch(pitchraw, p.fpitch);
 
     // control
-    if(m_axis == 0)
-      pitch_raw = ay;
-    else
-      pitch_raw = az;
-    
-    pitch_raw = pitch_raw * p.sensibility;
-    pitch_raw = pitch_raw / 1000;
-    pitch_raw += p.offset;
-    control(pitch_raw);
+    positionref = InterpolateP(pitch, p.p1pitch, p.p2pitch);
+    control();
 
     // update outputs
     digitalWrite(pin_motordir, (speed < 0));
@@ -326,18 +318,11 @@ void loop()
 
     if(slowCount >= slowTask)
     {
-      // cell voltage
-      int n = ReadAnalog(pin_cellvolt);
-      n = n * 1000;
-      voltage = n / 579;
- 
-      // update gui
-      updateState();
+      updateState();  // update GUI
       slowCount = 0;
     }
 
     lastTime = millis();
   }
-
   ws.cleanupClients();
 }

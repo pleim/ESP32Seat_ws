@@ -1,5 +1,11 @@
+#pragma once
 
 
+
+
+
+
+/*
 class Adapt
 {
     public:
@@ -9,6 +15,8 @@ class Adapt
 
     ~Adapt() = default;
 
+    // Adapt input
+    // @returns value in %, min = 0%, max = 100%
     float operator () (int in)
     {
         float a = in - min;
@@ -19,3 +27,4 @@ class Adapt
     int min;
     int max;
 };
+*/
