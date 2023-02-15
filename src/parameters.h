@@ -67,7 +67,7 @@ void Parameters::Parse(String s)
     fpos = value.toFloat();
   if (s.startsWith("par_fcurr"))
     fcurr = value.toFloat();  
-  if (s.startsWith("par_currmax"))
+  if (s.startsWith("par_curr"))
     curr = value.toInt();
   if (s.startsWith("par_hyst"))
     hyst = value.toFloat();

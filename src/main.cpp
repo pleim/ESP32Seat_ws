@@ -223,14 +223,14 @@ void control()
   // position control
   if(m_auto == 1)
   {
-    float pos_up = positionref - p.hyst;
-    float pos_down = positionref + p.hyst;
+    float pos_up = positionref - p.hyst;        // threshold for start upward
+    float pos_down = positionref + p.hyst;      // threshold for start downward
 
-    if(position < pos_up) speed = p.speed;
-    if(position > pos_down) speed = -p.speed;
+    if(position < pos_up) speed = p.speed;      // start upward
+    if(position > pos_down) speed = -p.speed;   // start downward
 
-    if(speed > 0 && position > positionref) speed = 0;
-    if(speed < 0 && position < positionref) speed = 0;    
+    if(speed > 0 && position > positionref) speed = 0;  // stop when move upward
+    if(speed < 0 && position < positionref) speed = 0;  // stop when move downward
   }
   else
   {
@@ -298,11 +298,15 @@ void loop()
     float positionadapted = Adapt(positionraw, p.bottom, p.top);
     position = LPFpositon(positionadapted, p.fpos);
 
+    // https://www.pololu.com/product/4036
+    // 2500mV/A, 400mA = 1V = 1575 -> 400/1575 = 0.254
     currentraw = ReadAnalog(pin_current);
-    current = LPFcurrent(currentraw * 1.0f, p.fcurr);
+    current = LPFcurrent(currentraw * 0.254f, p.fcurr);
 
+    // https://randomnerdtutorials.com/esp32-adc-analog-read-arduino-ide/
+    // 2000mV cell = 1V input = ADC reading of 1575 -> 1,27mV/U
     int voltageraw = ReadAnalog(pin_cellvolt);
-    voltage = LPFvoltage(voltageraw * 0.579f, 1.0f);  // const 1s filter
+    voltage = LPFvoltage(voltageraw * 1.270f, 1.0f);  // const 1s filter, 
     
     accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
     float pitchraw = Pitch(ax, ay, az);
